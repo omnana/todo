@@ -171,6 +171,48 @@ function App() {
     }
   };
 
+  // 格式化创建时间
+  const formatCreatedAt = (dateString: string) => {
+    const date = new Date(dateString);
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    
+    if (date.toDateString() === today.toDateString()) {
+      return `今天 ${date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}`;
+    } else if (date.toDateString() === yesterday.toDateString()) {
+      return `昨天 ${date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}`;
+    } else {
+      return date.toLocaleString('zh-CN', { 
+        month: 'short', 
+        day: 'numeric', 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      });
+    }
+  };
+
+  // 获取截止日期状态
+  const getDueDateStatus = (dueDate: string) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const due = new Date(dueDate);
+    due.setHours(0, 0, 0, 0);
+    
+    if (due < today) {
+      return { text: '已逾期', color: 'text-red-600 bg-red-50' };
+    } else if (due.getTime() === today.getTime()) {
+      return { text: '今天到期', color: 'text-orange-600 bg-orange-50' };
+    } else {
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      if (due.getTime() === tomorrow.getTime()) {
+        return { text: '明天到期', color: 'text-yellow-600 bg-yellow-50' };
+      }
+      return { text: formatDate(dueDate), color: 'text-gray-600 bg-gray-50' };
+    }
+  };
+
   return (
     <div className="min-h-screen bg-white">
       {/* Header */}
@@ -354,13 +396,19 @@ function App() {
                           {getPriorityText(task.priority)}
                         </span>
                         {task.dueDate && (
-                          <span className="text-gray-500 flex items-center">
-                            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getDueDateStatus(task.dueDate).color}`}>
+                            <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                             </svg>
-                            {formatDate(task.dueDate)}
+                            {getDueDateStatus(task.dueDate).text}
                           </span>
                         )}
+                        <span className="text-gray-500 flex items-center">
+                          <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          {formatCreatedAt(task.createdAt)}
+                        </span>
                       </div>
                     </div>
                     <div className="flex items-center space-x-2">
