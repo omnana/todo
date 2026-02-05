@@ -30,7 +30,7 @@ interface TaskStore {
   toggleAllTasks: (completed: boolean) => Promise<void>;
   clearCompleted: () => Promise<void>;
   deleteCompleted: () => Promise<void>;
-  
+
   // 筛选和排序
   setSearchQuery: (query: string) => void;
   setSelectedCategory: (categoryId: string | null) => void;
@@ -38,11 +38,11 @@ interface TaskStore {
   setSortBy: (sortBy: 'createdAt' | 'dueDate' | 'priority' | 'title') => void;
   setSortOrder: (order: 'asc' | 'desc') => void;
   clearFilters: () => void;
-  
+
   // 批量操作
   bulkUpdateTasks: (ids: string[], updates: Partial<Task>) => Promise<void>;
   bulkDeleteTasks: (ids: string[]) => Promise<void>;
-  
+
   // 数据管理
   loadTasks: () => Promise<void>;
   exportTasks: () => Promise<void>;
@@ -65,21 +65,21 @@ export const useTaskStore = create<TaskStore>()(
       // 计算属性
       filteredTasks: () => {
         const { tasks, searchQuery, selectedCategory, filterStatus, sortBy, sortOrder } = get();
-        
+
         let filtered = tasks.filter(task => {
           // 搜索过滤
-          const matchesSearch = !searchQuery || 
+          const matchesSearch = !searchQuery ||
             task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
             (task.description && task.description.toLowerCase().includes(searchQuery.toLowerCase()));
-          
+
           // 分类过滤
           const matchesCategory = !selectedCategory || task.category === selectedCategory;
-          
+
           // 状态过滤
-          const matchesStatus = filterStatus === 'all' || 
+          const matchesStatus = filterStatus === 'all' ||
             (filterStatus === 'completed' && task.completed) ||
             (filterStatus === 'todo' && !task.completed);
-          
+
           return matchesSearch && matchesCategory && matchesStatus;
         });
 
@@ -88,14 +88,20 @@ export const useTaskStore = create<TaskStore>()(
           createdAt: DataTransformer.sortByDate,
           dueDate: DataTransformer.sortByDueDate,
           priority: DataTransformer.sortByPriority,
-          title: (tasks: Task[], order: 'asc' | 'desc') => 
+          title: (tasks: Task[], order: 'asc' | 'desc') =>
             [...tasks].sort((a, b) => {
               const diff = a.title.localeCompare(b.title);
               return order === 'desc' ? -diff : diff;
             })
         };
-        
-        return sortFn[sortBy](filtered, sortOrder);
+
+        const sorted = sortFn[sortBy](filtered, sortOrder);
+
+        // 将已完成的任务排在后面
+        return sorted.sort((a, b) => {
+          if (a.completed === b.completed) return 0;
+          return a.completed ? 1 : -1;
+        });
       },
 
       stats: () => {
@@ -141,11 +147,11 @@ export const useTaskStore = create<TaskStore>()(
             id: Date.now().toString(),
             createdAt: new Date().toISOString(),
           };
-          
+
           set(state => ({
             tasks: [...state.tasks, newTask]
           }));
-          
+
           await storageService.saveTasks(get().tasks);
         } catch (error) {
           console.error('Error adding task:', error);
@@ -163,7 +169,7 @@ export const useTaskStore = create<TaskStore>()(
               task.id === id ? { ...task, ...updates } : task
             )
           }));
-          
+
           await storageService.saveTasks(get().tasks);
         } catch (error) {
           console.error('Error updating task:', error);
@@ -179,7 +185,7 @@ export const useTaskStore = create<TaskStore>()(
           set(state => ({
             tasks: state.tasks.filter(task => task.id !== id)
           }));
-          
+
           await storageService.saveTasks(get().tasks);
         } catch (error) {
           console.error('Error deleting task:', error);
@@ -202,7 +208,7 @@ export const useTaskStore = create<TaskStore>()(
           set(state => ({
             tasks: state.tasks.map(task => ({ ...task, completed }))
           }));
-          
+
           await storageService.saveTasks(get().tasks);
         } catch (error) {
           console.error('Error toggling all tasks:', error);
@@ -218,7 +224,7 @@ export const useTaskStore = create<TaskStore>()(
           set(state => ({
             tasks: state.tasks.filter(task => !task.completed)
           }));
-          
+
           await storageService.saveTasks(get().tasks);
         } catch (error) {
           console.error('Error clearing completed tasks:', error);
@@ -234,7 +240,7 @@ export const useTaskStore = create<TaskStore>()(
           set(state => ({
             tasks: state.tasks.filter(task => !task.completed)
           }));
-          
+
           await storageService.saveTasks(get().tasks);
         } catch (error) {
           console.error('Error deleting completed tasks:', error);
@@ -250,9 +256,9 @@ export const useTaskStore = create<TaskStore>()(
       setFilterStatus: (status) => set({ filterStatus: status }),
       setSortBy: (sortBy) => set({ sortBy }),
       setSortOrder: (order) => set({ sortOrder: order }),
-      clearFilters: () => set({ 
-        searchQuery: '', 
-        selectedCategory: null, 
+      clearFilters: () => set({
+        searchQuery: '',
+        selectedCategory: null,
         filterStatus: 'all',
         sortBy: 'createdAt',
         sortOrder: 'desc'
@@ -267,7 +273,7 @@ export const useTaskStore = create<TaskStore>()(
               ids.includes(task.id) ? { ...task, ...updates } : task
             )
           }));
-          
+
           await storageService.saveTasks(get().tasks);
         } catch (error) {
           console.error('Error bulk updating tasks:', error);
@@ -283,7 +289,7 @@ export const useTaskStore = create<TaskStore>()(
           set(state => ({
             tasks: state.tasks.filter(task => !ids.includes(task.id))
           }));
-          
+
           await storageService.saveTasks(get().tasks);
         } catch (error) {
           console.error('Error bulk deleting tasks:', error);
@@ -355,7 +361,7 @@ export const useTaskStore = create<TaskStore>()(
     }),
     {
       name: 'task-store',
-      partialize: (state) => ({ 
+      partialize: (state) => ({
         tasks: state.tasks,
         searchQuery: state.searchQuery,
         selectedCategory: state.selectedCategory,
