@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useGlobalStore } from './hooks/useGlobalStore';
-import type { Task, Priority } from './types';
+import type { Task, Priority, SubTask } from './types';
 
 function App() {
   const {
@@ -34,7 +34,88 @@ function App() {
     category: '',
     priority: 'medium' as Priority,
     dueDate: '',
+    subtasks: [] as SubTask[],
   });
+
+  const [modalSubtaskInput, setModalSubtaskInput] = useState('');
+
+  const handleAddSubtaskToModal = () => {
+    if (!modalSubtaskInput.trim()) return;
+    const newSubtask: SubTask = {
+      id: Date.now().toString(),
+      title: modalSubtaskInput.trim(),
+      completed: false
+    };
+    setNewTask(prev => ({ ...prev, subtasks: [...(prev.subtasks || []), newSubtask] }));
+    setModalSubtaskInput('');
+  };
+
+  const removeSubtaskFromModal = (id: string) => {
+    setNewTask(prev => ({ ...prev, subtasks: (prev.subtasks || []).filter(t => t.id !== id) }));
+  };
+
+  const toggleSubtaskInModal = (id: string) => {
+    setNewTask(prev => ({
+      ...prev,
+      subtasks: (prev.subtasks || []).map(t =>
+        t.id === id ? { ...t, completed: !t.completed } : t
+      )
+    }));
+  };
+
+  const [subtaskInputs, setSubtaskInputs] = useState<Record<string, string>>({});
+
+  const handleSubtaskInputChange = (taskId: string, value: string) => {
+    setSubtaskInputs(prev => ({ ...prev, [taskId]: value }));
+  };
+
+  const handleAddSubtask = async (taskId: string) => {
+    const title = subtaskInputs[taskId]?.trim();
+    if (!title) return;
+
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    const newSubtask: SubTask = {
+      id: Date.now().toString(),
+      title,
+      completed: false
+    };
+
+    try {
+      const updatedSubtasks = [...(task.subtasks || []), newSubtask];
+      await updateTask(taskId, { subtasks: updatedSubtasks });
+      setSubtaskInputs(prev => ({ ...prev, [taskId]: '' }));
+    } catch (error) {
+      console.error('Error adding subtask:', error);
+    }
+  };
+
+  const handleDeleteSubtask = async (taskId: string, subtaskId: string) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    try {
+      const updatedSubtasks = (task.subtasks || []).filter(st => st.id !== subtaskId);
+      await updateTask(taskId, { subtasks: updatedSubtasks });
+    } catch (error) {
+      console.error('Error deleting subtask:', error);
+    }
+  };
+
+  const handleToggleSubtask = async (taskId: string, subtaskId: string) => {
+    const task = tasks.find(t => t.id === taskId);
+    if (!task) return;
+
+    try {
+      const updatedSubtasks = (task.subtasks || []).map(st =>
+        st.id === subtaskId ? { ...st, completed: !st.completed } : st
+      );
+      await updateTask(taskId, { subtasks: updatedSubtasks });
+    } catch (error) {
+      console.error('Error toggling subtask:', error);
+    }
+  };
 
   const handleAddTask = async () => {
     if (!newTask.title.trim()) return;
@@ -46,9 +127,11 @@ function App() {
         priority: newTask.priority,
         dueDate: newTask.dueDate,
         completed: false,
+        subtasks: newTask.subtasks || [],
       });
-      setNewTask({ title: '', description: '', category: '', priority: 'medium', dueDate: '' });
+      setNewTask({ title: '', description: '', category: '', priority: 'medium', dueDate: '', subtasks: [] });
       setShowAddModal(false);
+      setModalSubtaskInput('');
     } catch (error) {
       console.error('Error adding task:', error);
     }
@@ -63,10 +146,12 @@ function App() {
         category: newTask.category || '未分类',
         priority: newTask.priority,
         dueDate: newTask.dueDate,
+        subtasks: newTask.subtasks || [],
       });
       setShowEditModal(false);
       setEditingTask(null);
-      setNewTask({ title: '', description: '', category: '', priority: 'medium', dueDate: '' });
+      setNewTask({ title: '', description: '', category: '', priority: 'medium', dueDate: '', subtasks: [] });
+      setModalSubtaskInput('');
     } catch (error) {
       console.error('Error updating task:', error);
     }
@@ -90,7 +175,9 @@ function App() {
       category: task.category || '',
       priority: task.priority,
       dueDate: task.dueDate || '',
+      subtasks: task.subtasks || [],
     });
+    setModalSubtaskInput('');
     setShowEditModal(true);
   };
 
@@ -274,8 +361,8 @@ function App() {
                   <button
                     onClick={() => setSelectedCategory(null)}
                     className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${selectedCategory === null
-                        ? 'bg-gray-800 text-white shadow-md'
-                        : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+                      ? 'bg-gray-800 text-white shadow-md'
+                      : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
                       }`}
                   >
                     全部
@@ -285,8 +372,8 @@ function App() {
                       key={category.id}
                       onClick={() => setSelectedCategory(category.name)}
                       className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${selectedCategory === category.name
-                          ? 'bg-indigo-600 text-white shadow-md'
-                          : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+                        ? 'bg-indigo-600 text-white shadow-md'
+                        : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
                         }`}
                     >
                       {category.name} <span className={`ml-1 text-xs ${selectedCategory === category.name ? 'text-indigo-200' : 'text-gray-400'}`}>{category.taskCount}</span>
@@ -375,6 +462,60 @@ function App() {
                             </p>
                           )}
 
+                          {/* 子任务列表 */}
+                          <div className="space-y-1 mt-3">
+                            {task.subtasks?.map(subtask => (
+                              <div key={subtask.id} className="flex items-center justify-between group/subtask pl-2 pr-2 py-1 hover:bg-gray-100 rounded-lg transition-colors">
+                                <div className="flex items-center gap-3 flex-1">
+                                  <input
+                                    type="checkbox"
+                                    checked={subtask.completed}
+                                    onChange={() => handleToggleSubtask(task.id, subtask.id)}
+                                    className="w-4 h-4 text-indigo-500 border-gray-300 rounded focus:ring-indigo-400 cursor-pointer"
+                                  />
+                                  <span className={`text-sm ${subtask.completed ? 'text-gray-400 line-through' : 'text-gray-700'}`}>
+                                    {subtask.title}
+                                  </span>
+                                </div>
+                                <button
+                                  onClick={() => handleDeleteSubtask(task.id, subtask.id)}
+                                  className="text-gray-400 hover:text-red-500 opacity-0 group-hover/subtask:opacity-100 transition-opacity p-1"
+                                >
+                                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                  </svg>
+                                </button>
+                              </div>
+                            ))}
+
+                            {/* 添加子任务输入框 */}
+                            <div className="flex items-center gap-2 pl-2 mt-2">
+                              <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                              </svg>
+                              <input
+                                type="text"
+                                value={subtaskInputs[task.id] || ''}
+                                onChange={(e) => handleSubtaskInputChange(task.id, e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    handleAddSubtask(task.id);
+                                  }
+                                }}
+                                placeholder="添加子任务..."
+                                className="flex-1 bg-transparent border-none text-sm focus:ring-0 p-0 placeholder-gray-400 text-gray-700"
+                              />
+                              {subtaskInputs[task.id] && (
+                                <button
+                                  onClick={() => handleAddSubtask(task.id)}
+                                  className="text-xs font-medium text-indigo-600 hover:text-indigo-700 px-2 py-1 rounded bg-indigo-50"
+                                >
+                                  添加
+                                </button>
+                              )}
+                            </div>
+                          </div>
+
                           <div className="flex flex-wrap items-center gap-2 text-sm mt-3">
                             <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-gray-100 text-gray-600">
                               # {task.category || '未分类'}
@@ -428,6 +569,51 @@ function App() {
                   placeholder="添加一些详细说明..."
                   rows={3}
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">子任务</label>
+                <div className="space-y-2 mb-3">
+                  {newTask.subtasks?.map(subtask => (
+                    <div key={subtask.id} className="flex items-center justify-between bg-gray-50 p-2 rounded-lg group">
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          checked={subtask.completed}
+                          onChange={() => toggleSubtaskInModal(subtask.id)}
+                          className="w-4 h-4 text-indigo-500 border-gray-300 rounded focus:ring-indigo-400 cursor-pointer"
+                        />
+                        <span className={`text-sm ${subtask.completed ? 'text-gray-400 line-through' : 'text-gray-700'}`}>
+                          {subtask.title}
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => removeSubtaskFromModal(subtask.id)}
+                        className="text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={modalSubtaskInput}
+                    onChange={(e) => setModalSubtaskInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleAddSubtaskToModal()}
+                    className="input-field flex-1"
+                    placeholder="添加子任务..."
+                  />
+                  <button
+                    onClick={handleAddSubtaskToModal}
+                    className="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-100 transition-colors"
+                  >
+                    添加
+                  </button>
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>

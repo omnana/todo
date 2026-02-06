@@ -4,6 +4,13 @@ export type Priority = 'low' | 'medium' | 'high';
 // 任务状态
 export type TaskStatus = 'todo' | 'completed';
 
+// 子任务接口
+export interface SubTask {
+  id: string;
+  title: string;
+  completed: boolean;
+}
+
 // 任务接口
 export interface Task {
   id: string;
@@ -14,6 +21,7 @@ export interface Task {
   dueDate?: string;
   completed: boolean;
   createdAt: string;
+  subtasks?: SubTask[];
 }
 
 // 分类接口
