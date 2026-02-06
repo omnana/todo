@@ -97,8 +97,14 @@ export const useTaskStore = create<TaskStore>()(
 
         const sorted = sortFn[sortBy](filtered, sortOrder);
 
+        // 如果当前排序规则不是优先级，则增加优先级排序规则：优先级高的排前面
+        let prioritySorted = sorted;
+        if (sortBy !== 'priority') {
+          prioritySorted = DataTransformer.sortByPriority(sorted, 'desc');
+        }
+
         // 将已完成的任务排在后面
-        return sorted.sort((a, b) => {
+        return prioritySorted.sort((a, b) => {
           if (a.completed === b.completed) return 0;
           return a.completed ? 1 : -1;
         });
