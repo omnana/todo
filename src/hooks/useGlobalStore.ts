@@ -64,21 +64,21 @@ export function useGlobalStore() {
     tasksByPriority: taskStore.tasksByPriority(),
     overdueTasks: taskStore.overdueTasks(),
     todayTasks: taskStore.todayTasks(),
-    
+
     // 分类相关
     categories: categoryStore.categories,
     categoriesWithTaskCount: (tasks: any[]) => categoryStore.getCategoriesWithTaskCount(tasks),
-    
+
     // 筛选状态
     searchQuery: taskStore.searchQuery,
     selectedCategory: taskStore.selectedCategory,
     filterStatus: taskStore.filterStatus,
     sortBy: taskStore.sortBy,
     sortOrder: taskStore.sortOrder,
-    
+
     // 加载状态
     isLoading: isAnyLoading,
-    
+
     // 任务操作方法
     addTask: taskStore.addTask,
     updateTask: taskStore.updateTask,
@@ -89,7 +89,8 @@ export function useGlobalStore() {
     deleteCompleted: taskStore.deleteCompleted,
     bulkUpdateTasks: taskStore.bulkUpdateTasks,
     bulkDeleteTasks: taskStore.bulkDeleteTasks,
-    
+    updateSubtask: taskStore.updateSubtask,
+
     // 分类操作方法
     addCategory: categoryStore.addCategory,
     updateCategory: categoryStore.updateCategory,
@@ -99,7 +100,7 @@ export function useGlobalStore() {
     bulkAddCategories: categoryStore.bulkAddCategories,
     bulkUpdateCategories: categoryStore.bulkUpdateCategories,
     bulkDeleteCategories: categoryStore.bulkDeleteCategories,
-    
+
     // 筛选方法
     setSearchQuery: taskStore.setSearchQuery,
     setSelectedCategory: taskStore.setSelectedCategory,
@@ -107,11 +108,11 @@ export function useGlobalStore() {
     setSortBy: taskStore.setSortBy,
     setSortOrder: taskStore.setSortOrder,
     clearFilters: taskStore.clearFilters,
-    
+
     // 工具方法
     clearAllData,
     exportAllData,
-    
+
     // 分类工具方法
     getCategoryCount: categoryStore.getCategoryCount,
     resetCategories: categoryStore.resetToDefault,

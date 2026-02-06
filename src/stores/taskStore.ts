@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { Task, TaskStatus, TaskStats, Priority } from '../types';
+import type { Task, TaskStatus, TaskStats, Priority, SubTask } from '../types';
 import { storageService } from '../services/storage';
 import { DataTransformer, StorageStats } from '../utils/storageUtils';
 
@@ -42,6 +42,9 @@ interface TaskStore {
   // 批量操作
   bulkUpdateTasks: (ids: string[], updates: Partial<Task>) => Promise<void>;
   bulkDeleteTasks: (ids: string[]) => Promise<void>;
+
+  // 子任务操作
+  updateSubtask: (taskId: string, subtaskId: string, updates: Partial<SubTask>) => Promise<void>;
 
   // 数据管理
   loadTasks: () => Promise<void>;
@@ -303,6 +306,18 @@ export const useTaskStore = create<TaskStore>()(
         } finally {
           set({ isLoading: false });
         }
+      },
+
+      updateSubtask: async (taskId, subtaskId, updates) => {
+        const task = get().tasks.find(t => t.id === taskId);
+        if (!task) return;
+
+        const currentSubtasks = task.subtasks || [];
+        const updatedSubtasks = currentSubtasks.map(st =>
+          st.id === subtaskId ? { ...st, ...updates } : st
+        );
+
+        await get().updateTask(taskId, { subtasks: updatedSubtasks });
       },
 
       // 数据管理

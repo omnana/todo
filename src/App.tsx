@@ -20,6 +20,7 @@ function App() {
     setSearchQuery,
     setSelectedCategory,
     setFilterStatus,
+    updateSubtask,
   } = useGlobalStore();
 
   const getFilteredTasks = () => filteredTasks;
@@ -38,6 +39,8 @@ function App() {
   });
 
   const [modalSubtaskInput, setModalSubtaskInput] = useState('');
+  const [editingModalSubtaskId, setEditingModalSubtaskId] = useState<string | null>(null);
+  const [editingModalSubtaskTitle, setEditingModalSubtaskTitle] = useState('');
 
   const handleAddSubtaskToModal = () => {
     if (!modalSubtaskInput.trim()) return;
@@ -64,6 +67,35 @@ function App() {
   };
 
   const [subtaskInputs, setSubtaskInputs] = useState<Record<string, string>>({});
+
+  // Subtask editing state
+  const [editingSubtask, setEditingSubtask] = useState<{ taskId: string, subtaskId: string } | null>(null);
+  const [editingSubtaskTitle, setEditingSubtaskTitle] = useState('');
+
+  const startEditingSubtask = (taskId: string, subtask: SubTask) => {
+    setEditingSubtask({ taskId, subtaskId: subtask.id });
+    setEditingSubtaskTitle(subtask.title);
+  };
+
+  const cancelEditingSubtask = () => {
+    setEditingSubtask(null);
+    setEditingSubtaskTitle('');
+  };
+
+  const saveEditingSubtask = async () => {
+    if (!editingSubtask || !editingSubtaskTitle.trim()) {
+      cancelEditingSubtask();
+      return;
+    }
+
+    try {
+      await updateSubtask(editingSubtask.taskId, editingSubtask.subtaskId, { title: editingSubtaskTitle.trim() });
+    } catch (error) {
+      console.error('Error updating subtask:', error);
+    } finally {
+      cancelEditingSubtask();
+    }
+  };
 
   const handleSubtaskInputChange = (taskId: string, value: string) => {
     setSubtaskInputs(prev => ({ ...prev, [taskId]: value }));
@@ -466,25 +498,59 @@ function App() {
                           <div className="space-y-1 mt-3">
                             {task.subtasks?.map(subtask => (
                               <div key={subtask.id} className="flex items-center justify-between group/subtask pl-2 pr-2 py-1 hover:bg-gray-100 rounded-lg transition-colors">
-                                <div className="flex items-center gap-3 flex-1">
+                                <div className="flex items-center gap-3 flex-1 min-w-0 mr-2">
                                   <input
                                     type="checkbox"
                                     checked={subtask.completed}
                                     onChange={() => handleToggleSubtask(task.id, subtask.id)}
-                                    className="w-4 h-4 text-indigo-500 border-gray-300 rounded focus:ring-indigo-400 cursor-pointer"
+                                    className="w-4 h-4 text-indigo-500 border-gray-300 rounded focus:ring-indigo-400 cursor-pointer flex-shrink-0"
                                   />
-                                  <span className={`text-sm ${subtask.completed ? 'text-gray-400 line-through' : 'text-gray-700'}`}>
-                                    {subtask.title}
-                                  </span>
+                                  {editingSubtask?.taskId === task.id && editingSubtask?.subtaskId === subtask.id ? (
+                                    <input
+                                      type="text"
+                                      value={editingSubtaskTitle}
+                                      onChange={(e) => setEditingSubtaskTitle(e.target.value)}
+                                      onBlur={saveEditingSubtask}
+                                      onKeyDown={(e) => {
+                                        if (e.key === 'Enter') saveEditingSubtask();
+                                        if (e.key === 'Escape') cancelEditingSubtask();
+                                      }}
+                                      autoFocus
+                                      className="flex-1 text-sm border-gray-300 rounded px-2 py-0.5 focus:ring-indigo-500 focus:border-indigo-500"
+                                      onClick={(e) => e.stopPropagation()}
+                                    />
+                                  ) : (
+                                    <span
+                                      className={`text-sm truncate cursor-pointer hover:text-indigo-600 ${subtask.completed ? 'text-gray-400 line-through' : 'text-gray-700'}`}
+                                      onClick={() => startEditingSubtask(task.id, subtask)}
+                                      title="点击修改内容"
+                                    >
+                                      {subtask.title}
+                                    </span>
+                                  )}
                                 </div>
-                                <button
-                                  onClick={() => handleDeleteSubtask(task.id, subtask.id)}
-                                  className="text-gray-400 hover:text-red-500 opacity-0 group-hover/subtask:opacity-100 transition-opacity p-1"
-                                >
-                                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                  </svg>
-                                </button>
+                                <div className="flex items-center opacity-0 group-hover/subtask:opacity-100 transition-opacity flex-shrink-0">
+                                  {!(editingSubtask?.taskId === task.id && editingSubtask?.subtaskId === subtask.id) && (
+                                    <button
+                                      onClick={() => startEditingSubtask(task.id, subtask)}
+                                      className="text-gray-400 hover:text-indigo-500 p-1 mr-1"
+                                      title="编辑"
+                                    >
+                                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                      </svg>
+                                    </button>
+                                  )}
+                                  <button
+                                    onClick={() => handleDeleteSubtask(task.id, subtask.id)}
+                                    className="text-gray-400 hover:text-red-500 p-1"
+                                    title="删除"
+                                  >
+                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                  </button>
+                                </div>
                               </div>
                             ))}
 
@@ -576,20 +642,60 @@ function App() {
                 <div className="space-y-2 mb-3">
                   {newTask.subtasks?.map(subtask => (
                     <div key={subtask.id} className="flex items-center justify-between bg-gray-50 p-2 rounded-lg group">
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 flex-1 min-w-0 mr-2">
                         <input
                           type="checkbox"
                           checked={subtask.completed}
                           onChange={() => toggleSubtaskInModal(subtask.id)}
-                          className="w-4 h-4 text-indigo-500 border-gray-300 rounded focus:ring-indigo-400 cursor-pointer"
+                          className="w-4 h-4 text-indigo-500 border-gray-300 rounded focus:ring-indigo-400 cursor-pointer flex-shrink-0"
                         />
-                        <span className={`text-sm ${subtask.completed ? 'text-gray-400 line-through' : 'text-gray-700'}`}>
-                          {subtask.title}
-                        </span>
+                        {editingModalSubtaskId === subtask.id ? (
+                          <input
+                            type="text"
+                            value={editingModalSubtaskTitle}
+                            onChange={(e) => setEditingModalSubtaskTitle(e.target.value)}
+                            onBlur={() => {
+                              if (editingModalSubtaskTitle.trim()) {
+                                setNewTask(prev => ({
+                                  ...prev,
+                                  subtasks: (prev.subtasks || []).map(t => t.id === subtask.id ? { ...t, title: editingModalSubtaskTitle.trim() } : t)
+                                }));
+                              }
+                              setEditingModalSubtaskId(null);
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                if (editingModalSubtaskTitle.trim()) {
+                                  setNewTask(prev => ({
+                                    ...prev,
+                                    subtasks: (prev.subtasks || []).map(t => t.id === subtask.id ? { ...t, title: editingModalSubtaskTitle.trim() } : t)
+                                  }));
+                                }
+                                setEditingModalSubtaskId(null);
+                              }
+                              if (e.key === 'Escape') {
+                                setEditingModalSubtaskId(null);
+                              }
+                            }}
+                            autoFocus
+                            className="flex-1 text-sm border-gray-300 rounded px-2 py-0.5 focus:ring-indigo-500 focus:border-indigo-500"
+                          />
+                        ) : (
+                          <span
+                            className={`text-sm truncate cursor-pointer hover:text-indigo-600 ${subtask.completed ? 'text-gray-400 line-through' : 'text-gray-700'}`}
+                            onClick={() => {
+                              setEditingModalSubtaskId(subtask.id);
+                              setEditingModalSubtaskTitle(subtask.title);
+                            }}
+                            title="点击修改内容"
+                          >
+                            {subtask.title}
+                          </span>
+                        )}
                       </div>
                       <button
                         onClick={() => removeSubtaskFromModal(subtask.id)}
-                        className="text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1"
+                        className="text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1 flex-shrink-0"
                       >
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
